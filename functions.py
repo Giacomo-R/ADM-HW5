@@ -13,6 +13,8 @@ import itertools
 
 import networkx as nx
 import queue
+from collections import deque
+from treelib import Node, Tree
 
 import functions as fn
 
@@ -25,7 +27,7 @@ def set_marked_false (G):
         G.nodes[node]['marked'] = False
         
 
-def rq2 (graph, starting_page, num_clicks): 
+def rq2 (G, starting_page, num_clicks): 
     
     list_reachable_pages = []    
     q = deque()  # initialize the queue object 
@@ -33,7 +35,7 @@ def rq2 (graph, starting_page, num_clicks):
     new_tree = Tree()
     
     if not G.has_node(starting_page):
-        print ('The node you inserted as starting point is not in the graph')
+        print ('The node you inserted as starting point is not in the ')
         return 
     
     set_marked_false(G)
@@ -63,16 +65,15 @@ def rq2 (graph, starting_page, num_clicks):
 #############################################              RQ3               #####################################################
 ##################################################################################################################################
 
-def most_central_article(df, pages, final_category_dict, category):
-    set_pages = final_category_dict[category] #set of pages corresponding to the category in input
+def most_central_article(df, pages, final_category_dict, category, init_set_pages):
     
     in_degrees = []
-    for page in set_pages:  #for every page in set_pages
+    for page in init_set_pages:  #for every page in set_pages
         
         #counts how many links are pointing to that page 
         in_degrees.append(df.loc[df['target']==page]['edge'].count())
     
-    most_central = set_pages[in_degrees.index(max(in_degrees))]
+    most_central = init_set_pages[in_degrees.index(max(in_degrees))]
     
     return most_central
 
@@ -92,9 +93,11 @@ def iterations(set_pages, G, pages_reached, tot_pages_reached):
     return pages_reached1, tot_pages_reached
 
 
-def min_clicks(G, df, pages, final_category_dict,v,category):
+def min_clicks(G, df, pages, final_category_dict,v,category, init_set_pages):
     i = 0 
-    set_pages = final_category_dict[category]  
+    
+    set_pages = init_set_pages
+        
     pages_reached = [n for n in G.neighbors(v) if n in set_pages]
     tot_pages_reached = pages_reached
     
@@ -105,11 +108,11 @@ def min_clicks(G, df, pages, final_category_dict,v,category):
         pages_reached, tot_pages_reached = iterations(set_pages, G, pages_reached, tot_pages_reached)
         print(f'Iteration {i}. Pages reached in {i} click: {len(pages_reached)}')
         
-    if len(tot_pages_reached) == len(final_category_dict[category]):
+    if len(tot_pages_reached) == len(init_set_pages):
         return f'minimum number of clicks required to reach all pages: {i+1}'
     
     else:
-        return i, f'Not Possible, total pages reached: {len(tot_pages_reached)} out of {len(final_category_dict[category])}'
+        return i, f'Not Possible, total pages reached: {len(tot_pages_reached)} out of {len(init_set_pages)}'
     
     
     
@@ -163,9 +166,10 @@ The output is the minimum number of clicks needed to get from the central page v
 - I have to click to the max number of links to get there. If I cannot get to ALL the pages in the category from my initial
 page, the algorithm stops and return the max number of pages it got before it had to stop'''
 
-def min_clicks2(G, df, pages, final_category_dict,v,category):
+def min_clicks2(G, df, pages, final_category_dict,v,category, init_set_pages):
     i = 0 
-    set_pages = final_category_dict[category]                                         #set of all pages from the category in input
+     
+    set_pages = init_set_pages                                      
     
     neighbors = [n for n in G.neighbors(v)]                                             #all the neighbors of node v
     pages_reached_in_setpages = [n for n in neighbors if n in set_pages]                #neighbors that are in the set of pages to reach
@@ -183,19 +187,19 @@ def min_clicks2(G, df, pages, final_category_dict,v,category):
                                                                                                                 tot_pages_only_set)
         print(f'Iteration {i}. Pages reached in {i+1} click: {len(pages_reached_in_setpages)}')
         
-    if len(tot_pages_reached) == len(final_category_dict[category]):                    #if I visit all the pages in the category
+    if len(tot_pages_reached) == len(init_set_pages):                                   #if I visit all the pages in input
         return f'minimum number of clicks required to reach all pages: {i+1}'           #I return the maximum number of clicks to reach the page that is further than v
     
     #if the sum is not equal it means that there is at least one page that cannot be reached from v
     else:
-        return i, f'Not Possible, total pages reached: {len(tot_pages_only_set)} out of {len(final_category_dict[category])}'
+        return i, f'Not Possible, total pages reached: {len(tot_pages_only_set)} out of {len(init_set_pages)}'
     
     
 ##################################################################################################################################
 #############################################              RQ6               #####################################################
 ##################################################################################################################################
 
-def nodes_to_category(G1, final_category_dict)
+def nodes_to_category(G1, final_category_dict):
     cat = []
     for node in tqdm(G1.nodes()):
         for key, value in final_category_dict.items():
@@ -210,27 +214,34 @@ def nodes_to_category(G1, final_category_dict)
     return node_to_cat
 
 
-def get_transition_matrix(G1, outlinks_per_node):
-    M = np.zeros((len(G1.nodes()), len(G1.nodes())))  #initialize a matrix nxn (n = #nodes)
-    nodes = [node for node in G1.nodes()]             #list of nodes in our graph
+def count_edges_per_category(G,inverted_link2):
+    dict_edge_cat = {}
 
-    #for each row that corresponds to each node
-    for i,source in tqdm(enumerate(G1.nodes())):
-        nodes_linked = [elem for elem in G1[source]]   #list of nodes that can be reached from that node
+    for i,source in tqdm(enumerate(G.nodes())):
+        nodes_linked = [elem for elem in G[source]]   #list of nodes that can be reached from that node
+
+        source_cat = inverted_link2[source][0]
+        if source_cat not in  dict_edge_cat.keys():
+            dict_edge_cat[source_cat] = {}
+
+
         for target in nodes_linked:
-            M[i][nodes.index(target)] = G1[source][target][0]['weight']  #I assign the weight that I previously calculated
-                                                                         #in the correct cell of the matrix
-    zero_outlinks = []
-    for key, value in outlinks_per_node.items():
-        if value == 0:
-            zero_outlinks.append(str(key))
-    
-    n = len(nodes)
-    for elem in tqdm(zero_outlinks):
-        M[nodes.index(elem)] = 1/n
-        
-    return M
+            target_cat = inverted_link2[target][0]
+            if target_cat not in dict_edge_cat[source_cat].keys():
+                dict_edge_cat[source_cat][target_cat] = 1
 
+            else:   
+                dict_edge_cat[source_cat][target_cat] +=1
+    return dict_edge_cat
+
+
+def get_transition_matrix(df4, G1):
+    M = np.zeros((len(G1.nodes()),len(G1.nodes())))
+    for i in tqdm(range(len(M))):
+        s = df4.iloc[i][-1]
+        for j in range(len(M)):
+            M[i][j] = df4.iloc[i][j]/s
+    return M
 
 
 def final_pagerank_output(G1,v):
@@ -240,7 +251,6 @@ def final_pagerank_output(G1,v):
     x = sorted(cat_to_pagerank, key=cat_to_pagerank.get)
     x.reverse()
     return x
-
 
 
 def pagerank(n_iter, a, nodes, M, G1):
