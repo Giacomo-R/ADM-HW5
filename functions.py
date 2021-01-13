@@ -314,20 +314,30 @@ def distance(G, df, v,  set_pages, page_list_temp):
 #############################################              RQ6               #####################################################
 ##################################################################################################################################
 
+'''This function takes in input the graph and a dictionary that contains as keysthe category and as values the list
+of pages in each category. The output is a dictionary that has for key each page and associeted its category'''
+
 def nodes_to_category(G1, final_category_dict):
     cat = []
+    
+    #we create a list of corresponding categories starting from a list of nodes 
     for node in tqdm(G1.nodes()):
         for key, value in final_category_dict.items():
             if node in value:
                 cat.append(key)
                 break
-
+    
+    # we combine the two lists (G1.nodes() and cat) to make the final dictionary
     node_to_cat = defaultdict()
     for i,node in tqdm(enumerate(G1.nodes())):
         node_to_cat[node]  = cat[i]
         
     return node_to_cat
 
+
+'''This function counts for each category the number of edges that linked together the pages of that category
+with the peges of every other category and returns a dictionary that, for each category associates another 
+dictionary of every other category with the sum of the edges counted'''
 
 def count_edges_per_category(G,inverted_link2):
     dict_edge_cat = {}
@@ -349,15 +359,24 @@ def count_edges_per_category(G,inverted_link2):
                 dict_edge_cat[source_cat][target_cat] +=1
     return dict_edge_cat
 
+'''This function takes the dataframe generated from the dictionary returned by the function above and 
+creates the transition matrix to be used in the pagerank algorithm'''
 
 def get_transition_matrix(df4, G1):
-    M = np.zeros((len(G1.nodes()),len(G1.nodes())))
+    M = np.zeros((len(G1.nodes()),len(G1.nodes())))   #initialization of an matrix of all zeros
+    
+    #for every row we define the sum of the elemens in the row
     for i in tqdm(range(len(M))):
         s = df4.iloc[i][-1]
+        
+        #for every column we divide the elem by the sum 
         for j in range(len(M)):
-            M[i][j] = df4.iloc[i][j]/s
+            M[i][j] = df4.iloc[i][j]/s        #we associate this value at the corresponding cell in the matrix M
     return M
 
+
+'''Function to be recalled inside the pagerank algorithm that sorts the categories by
+their pagerank score and returns them from the greater to the smallest score'''
 
 def final_pagerank_output(G1,v):
     cat_to_pagerank = defaultdict()
