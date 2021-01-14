@@ -198,9 +198,13 @@ def min_clicks2(G, df, pages, final_category_dict,v,category, init_set_pages):
 #############################################              RQ4               #####################################################
 ##################################################################################################################################
 
-def hyper_remove(H, df, set_pages, final_category_dict , category1 , category2, u, v, counter):
+
+def hyper_remove(df, set_pages, final_category_dict , u, v, counter):
     i = 0 
     
+    H = nx.from_pandas_edgelist(df, "source", "target",create_using=nx.MultiDiGraph())
+    H = nx.subgraph(H, set_pages )
+
     try:
         #page reached can be only in the subgraph
         pages_reached = [n for n in H.neighbors(v) if n in set_pages]
@@ -226,8 +230,7 @@ def hyper_remove(H, df, set_pages, final_category_dict , category1 , category2, 
                     #removing the hyperlink
                     df = df[(df['source'] != x) & (df['target'] != u)]
                     #run again the function  with the new edge dataset passing the current counter of hyperlinks removed
-                    hyper_removed = hyper_remove(H, df, new_set_pages, final_category_dict , category1 , \
-                                                 category2, u, v, counter)  
+                    hyper_removed = hyper_remove(df, set_pages, final_category_dict , u, v, counter)  
 
     except TypeError:
         pass
@@ -238,6 +241,7 @@ def hyper_remove(H, df, set_pages, final_category_dict , category1 , category2, 
     
     else:
         print(f'{v} and {u} are not connected by default')
+    
 
 
 
